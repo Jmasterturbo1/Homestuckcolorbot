@@ -1,32 +1,33 @@
 import os
+import re
 import discord
 from discord.ext import commands
 from flask import Flask
 from threading import Thread
 
-# ------------- CONFIGURABLE SETTINGS ----------------
+# ---------------- CONFIG ----------------
+# Roles that control message formatting
 ROLE_COLOR_MAP = {
-    "Red": "#FF0000",
-    "Orange": "#FFA500",
-    "Yellow": "#FFFF00",
-    "Green": "#00FF00",
-    "Blue": "#0000FF",
-    "Indigo": "#4B0082",
-    "Violet": "#EE82EE"
+    "Red": "css",     # Use Discord syntax highlighting (css, diff, etc.) for colored text
+    "Orange": "fix",
+    "Yellow": "ini",
+    "Green": "bash",
+    "Blue": "css",
+    "Indigo": "diff",
+    "Violet": "md"
 }
 
-# Toggle whether to hide user profile pictures for these roles
+# Global toggle: hide profile pictures? (unused here, text only)
 HIDE_PFPS_FOR_ROLES = True
-# -----------------------------------------------------
+# ----------------------------------------
 
-# Set up the Discord bot
+# Setup Discord bot intents
 intents = discord.Intents.default()
 intents.message_content = True
-intents.guilds = True
 intents.members = True
-
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# ------------------- EVENTS -------------------
 @bot.event
 async def on_ready():
     print(f"✅ Logged in as {bot.user}")
@@ -37,31 +38,31 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
-    # Get roles of the user
+    # Check if user has one of the color roles
     user_roles = [role.name for role in message.author.roles]
     matching_roles = [r for r in user_roles if r in ROLE_COLOR_MAP]
 
     if matching_roles:
-        # Pick the first matching color role
         role_name = matching_roles[0]
-        color_hex = ROLE_COLOR_MAP[role_name]
-        initials = "".join(word[0].upper() for word in message.author.display_name.split())
+        syntax = ROLE_COLOR_MAP[role_name]
 
-        embed = discord.Embed(
-            description=message.content,
-            color=discord.Color(int(color_hex.lstrip("#"), 16))
-        )
-        embed.set_author(
-            name=f"{initials}: {message.author.display_name}",
-            icon_url=None if HIDE_PFPS_FOR_ROLES else message.author.display_avatar.url
-        )
+        # Get initials (supports single-word camel-case names)
+        nickname = message.author.display_name
+        initials = "".join(re.findall(r'[A-Z]', nickname))
+        if not initials:
+            initials = nickname[0].upper()
 
-        await message.channel.send(embed=embed)
+        # Prepend initials to message
+        content = f"{initials}: {message.content}"
+
+        # Send text with optional syntax highlighting for "color"
+        formatted_message = f"```{syntax}\n{content}\n```"
+        await message.channel.send(formatted_message)
         await message.delete()
     else:
         await bot.process_commands(message)
 
-# ---------------- KEEP-ALIVE SERVER -------------------
+# ----------------- KEEP-ALIVE SERVER -----------------
 app = Flask('')
 
 @app.route('/')
@@ -72,8 +73,8 @@ def run():
     app.run(host='0.0.0.0', port=8080)
 
 Thread(target=run).start()
-# -----------------------------------------------------
+# ------------------------------------------------------
 
-# Run the bot using Render environment variable
+# ----------------- RUN BOT -----------------
 bot.run(os.getenv("DISCORD_TOKEN"))
 
