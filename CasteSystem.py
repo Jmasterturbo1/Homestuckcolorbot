@@ -4,13 +4,9 @@ import discord
 from discord.ext import commands
 from flask import Flask
 from threading import Thread
-from PIL import Image, ImageDraw, ImageFont
-import io
 
 # ---------------- CONFIG ----------------
 ROLE_NAMES = ["Red", "Orange", "Yellow", "Green", "Blue", "Indigo", "Violet"]
-FONT_PATH = "arial.ttf"  # make sure this font is available in your environment
-FONT_SIZE = 40
 # ----------------------------------------
 
 intents = discord.Intents.default()
@@ -24,21 +20,6 @@ def get_initials(nickname: str) -> str:
     if not initials:
         initials = nickname[0].upper()
     return initials
-
-def create_text_image(text: str, hex_color: int) -> io.BytesIO:
-    # Convert integer hex to RGB tuple
-    rgb = ((hex_color >> 16) & 0xFF, (hex_color >> 8) & 0xFF, hex_color & 0xFF)
-
-    font = ImageFont.truetype(FONT_PATH, FONT_SIZE)
-    width, height = font.getsize(text)
-    img = Image.new("RGBA", (width + 20, height + 20), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.text((10, 0), text, fill=rgb, font=font)
-
-    buffer = io.BytesIO()
-    img.save(buffer, format="PNG")
-    buffer.seek(0)
-    return buffer
 
 # ---------------- EVENTS ----------------
 @bot.event
@@ -58,13 +39,13 @@ async def on_message(message):
         initials = get_initials(nickname)
         text = f"{initials}: {message.content}"
 
-        # Generate image
-        image_buffer = create_text_image(text, role.color.value)
+        # Create embed with role color on sidebar
+        embed = discord.Embed(
+            description=text,
+            color=role.color  # sidebar matches role hex color
+        )
 
-        # Send via webhook to mimic native user message
-        webhook = await message.channel.create_webhook(name="ColorTextBot")
-        await webhook.send(file=discord.File(fp=image_buffer, filename="message.png"))
-        await webhook.delete()
+        await message.channel.send(embed=embed)
         await message.delete()
     else:
         await bot.process_commands(message)
@@ -84,4 +65,3 @@ Thread(target=run).start()
 
 # ---------------- RUN BOT ----------------
 bot.run(os.getenv("DISCORD_TOKEN"))
-
