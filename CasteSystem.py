@@ -1,7 +1,25 @@
+import os
 import discord
 from discord.ext import commands
+from flask import Flask
+from threading import Thread
 
-# Intents for message + member info
+# ------------- CONFIGURABLE SETTINGS ----------------
+ROLE_COLOR_MAP = {
+    "Red": "#FF0000",
+    "Orange": "#FFA500",
+    "Yellow": "#FFFF00",
+    "Green": "#00FF00",
+    "Blue": "#0000FF",
+    "Indigo": "#4B0082",
+    "Violet": "#EE82EE"
+}
+
+# Toggle whether to hide user profile pictures for these roles
+HIDE_PFPS_FOR_ROLES = True
+# -----------------------------------------------------
+
+# Set up the Discord bot
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
@@ -9,83 +27,53 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Role Names where colors apply
-COLOR_ROLES = ["Red", "Orange", "Yellow", "Green", "Blue", "Indigo", "Violet"]
-
-# Color overrides (0xRRGGBB)
-CUSTOM_COLORS = {
-    "Red": 0xFF3333,
-    "Orange": 0xFF9900,
-    "Yellow": 0xFFF000,
-    "Green": 0x00CC66,
-    "Blue": 0x3399FF,
-    "Indigo": 0x4B0082,
-    "Violet": 0x9933FF,
-}
-
-# 🧩 Global toggle to show profile pictures (for users with color roles)
-SHOW_PROFILE_PIC = False  # Set to True if you want avatars in embeds
-
-
 @bot.event
 async def on_ready():
     print(f"✅ Logged in as {bot.user}")
 
-
-def get_initials(name: str) -> str:
-    """Extract initials from a user's nickname or username."""
-    if not name:
-        return "??"
-
-    # Split nickname by spaces or underscores
-    parts = [p for p in name.replace("_", " ").split(" ") if p]
-
-    if len(parts) == 1:
-        # Try to use capital letters for initials if available
-        name = parts[0]
-        caps = [c for c in name if c.isupper()]
-        if len(caps) >= 2:
-            return "".join(caps[:2])
-        elif len(name) >= 2:
-            return (name[0] + name[1]).upper()
-        else:
-            return name[0].upper()
-    else:
-        # Take first letter of up to first two words
-        return "".join(p[0].upper() for p in parts[:2])
-
-
 @bot.event
 async def on_message(message):
-    # Ignore bot's own messages
+    # Ignore messages from the bot itself
     if message.author == bot.user:
         return
 
-    # Only act on users with one of the specified roles
-    color_roles = [r for r in message.author.roles if r.name in COLOR_ROLES]
-    if not color_roles:
-        return  # user doesn't have a color role → do nothing
+    # Get roles of the user
+    user_roles = [role.name for role in message.author.roles]
+    matching_roles = [r for r in user_roles if r in ROLE_COLOR_MAP]
 
-    color_role = color_roles[0]
-    # Use custom color if defined, otherwise use the role's actual color
-    embed_color = CUSTOM_COLORS.get(color_role.name, color_role.color.value)
+    if matching_roles:
+        # Pick the first matching color role
+        role_name = matching_roles[0]
+        color_hex = ROLE_COLOR_MAP[role_name]
+        initials = "".join(word[0].upper() for word in message.author.display_name.split())
 
-    nickname = message.author.nick or message.author.name
-    initials = get_initials(nickname)
-    formatted_text = f"**{initials}:** {message.content}"
+        embed = discord.Embed(
+            description=message.content,
+            color=discord.Color(int(color_hex.lstrip("#"), 16))
+        )
+        embed.set_author(
+            name=f"{initials}: {message.author.display_name}",
+            icon_url=None if HIDE_PFPS_FOR_ROLES else message.author.display_avatar.url
+        )
 
-    embed = discord.Embed(description=formatted_text, color=embed_color)
-
-    # Add author display name (with or without avatar based on toggle)
-    if SHOW_PROFILE_PIC:
-        embed.set_author(name=message.author.display_name,
-                         icon_url=message.author.display_avatar.url)
+        await message.channel.send(embed=embed)
+        await message.delete()
     else:
-        embed.set_author(name=message.author.display_name)
+        await bot.process_commands(message)
 
-    # Replace message with formatted embed
-    await message.channel.send(embed=embed)
-    await message.delete()
+# ---------------- KEEP-ALIVE SERVER -------------------
+app = Flask('')
 
+@app.route('/')
+def home():
+    return "Color Role Bot is running!"
 
-bot.run("TOKEN")
+def run():
+    app.run(host='0.0.0.0', port=8080)
+
+Thread(target=run).start()
+# -----------------------------------------------------
+
+# Run the bot using Render environment variable
+bot.run(os.getenv("DISCORD_TOKEN"))
+
