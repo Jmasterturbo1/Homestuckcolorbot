@@ -3,33 +3,43 @@ import re
 import discord
 from discord.ext import commands
 from discord import app_commands
-from flask import Flask
-from threading import Thread
 
 # ---------------- CONFIG ----------------
 ROLE_NAMES = ["Rust", "Bronze", "Gold", "Olive", "Jade", "Teal", "Cobalt", "Indigo", "Purple", "Violet", "Fuchsia"]
+GUILD_ID = 123456789012345678  # <- Replace with your Discord server ID
 # ----------------------------------------
 
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
-
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # ---------------- HELPER FUNCTIONS ----------------
 def get_initials(nickname: str) -> str:
     initials = "".join(re.findall(r'[A-Z]', nickname))
     if not initials:
-        initials = nickname[:2].upper()
+        initials = nickname[0].upper()
     return initials
+
+async def assign_role(member: discord.Member, new_role_name: str):
+    # Remove any existing caste roles
+    for role in member.roles:
+        if role.name in ROLE_NAMES:
+            await member.remove_roles(role)
+    # Assign new role
+    role_to_add = discord.utils.get(member.guild.roles, name=new_role_name)
+    if role_to_add:
+        await member.add_roles(role_to_add)
 
 # ---------------- EVENTS ----------------
 @bot.event
 async def on_ready():
     print(f"✅ Logged in as {bot.user}")
+    guild = discord.Object(id=GUILD_ID)
     try:
-        synced = await bot.tree.sync()
-        print(f"✅ Synced {len(synced)} slash command(s)")
+        # Sync commands to your server instantly
+        await bot.tree.sync(guild=guild)
+        print("✅ Slash commands synced!")
     except Exception as e:
         print(f"❌ Failed to sync commands: {e}")
 
@@ -38,6 +48,7 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
+    # Check for role
     user_roles = [role for role in message.author.roles if role.name in ROLE_NAMES]
     if user_roles:
         role = user_roles[0]
@@ -45,6 +56,7 @@ async def on_message(message):
         initials = get_initials(nickname)
         text = f"{initials}: {message.content}"
 
+        # Send embed with role color
         embed = discord.Embed(
             description=text,
             color=role.color
@@ -55,41 +67,24 @@ async def on_message(message):
     else:
         await bot.process_commands(message)
 
-# ---------------- SLASH COMMANDS ----------------
-@bot.tree.command(name="changeblood", description="Change your caste/blood color role.")
-@app_commands.describe(new_role="The name of your new blood caste (e.g., Gold, Teal, etc.)")
+# ---------------- SLASH COMMAND ----------------
+@bot.tree.command(name="changeblood", description="Change your caste role", guild=discord.Object(id=GUILD_ID))
+@app_commands.describe(new_role="The new caste role to assign")
 async def changeblood(interaction: discord.Interaction, new_role: str):
-    guild = interaction.guild
-    member = interaction.user
-
-    # Case-insensitive match
-    matching_roles = [r for r in guild.roles if r.name.lower() == new_role.lower() and r.name in ROLE_NAMES]
-    if not matching_roles:
-        await interaction.response.send_message(f"❌ '{new_role}' is not a valid caste role.", ephemeral=True)
+    if new_role not in ROLE_NAMES:
+        await interaction.response.send_message(f"❌ Invalid role. Choose from: {', '.join(ROLE_NAMES)}", ephemeral=True)
         return
 
-    new_role_obj = matching_roles[0]
+    await assign_role(interaction.user, new_role)
+    await interaction.response.send_message(f"✅ Your role has been changed to {new_role}!", ephemeral=True)
 
-    # Remove old caste roles
-    old_roles = [r for r in member.roles if r.name in ROLE_NAMES]
-    for r in old_roles:
-        await member.remove_roles(r)
-
-    # Add new one
-    await member.add_roles(new_role_obj)
-    await interaction.response.send_message(f"✅ Your blood caste has been changed to **{new_role_obj.name}**!", ephemeral=True)
-
-# ---------------- KEEP-ALIVE SERVER ----------------
-app = Flask('')
-
-@app.route('/')
-def home():
-    return "Color Role Bot is running!"
-
-def run():
-    app.run(host='0.0.0.0', port=8080)
-
-Thread(target=run).start()
+# ---------------- AUTOCOMPLETE ----------------
+@changeblood.autocomplete('new_role')
+async def new_role_autocomplete(interaction: discord.Interaction, current: str):
+    return [
+        app_commands.Choice(name=r, value=r) 
+        for r in ROLE_NAMES if current.lower() in r.lower()
+    ][:25]  # Discord limits to 25 suggestions
 
 # ---------------- RUN BOT ----------------
 bot.run(os.getenv("DISCORD_TOKEN"))
