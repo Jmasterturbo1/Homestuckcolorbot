@@ -6,7 +6,7 @@ from flask import Flask
 from threading import Thread
 
 # ---------------- CONFIG ----------------
-ROLE_NAMES = ["Red", "Orange", "Yellow", "Green", "Blue", "Indigo", "Violet"]
+ROLE_NAMES = ["Rust", "Bronze", "Gold", "Olive", "Jade", "Teal", "Cobalt", "Indigo", "Purple", "Violet", "Fuchsia",]
 # ----------------------------------------
 
 intents = discord.Intents.default()
