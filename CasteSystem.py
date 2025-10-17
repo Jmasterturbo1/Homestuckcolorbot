@@ -71,13 +71,26 @@ async def on_message(message):
 @bot.tree.command(name="changeblood", description="Change your caste role", guild=discord.Object(id=GUILD_ID))
 @app_commands.describe(new_role="The new caste role to assign")
 async def changeblood(interaction: discord.Interaction, new_role: str):
+    await interaction.response.defer(ephemeral=True)  # <-- immediately respond to avoid timeout
+
     if new_role not in ROLE_NAMES:
-        await interaction.response.send_message(f"❌ Invalid role. Choose from: {', '.join(ROLE_NAMES)}", ephemeral=True)
+        await interaction.followup.send(
+            f"❌ Invalid role. Choose from: {', '.join(ROLE_NAMES)}", 
+            ephemeral=True
+        )
         return
 
-    await assign_role(interaction.user, new_role)
-    await interaction.response.send_message(f"✅ Your role has been changed to {new_role}!", ephemeral=True)
-
+    try:
+        await assign_role(interaction.user, new_role)
+        await interaction.followup.send(
+            f"✅ Your role has been changed to **{new_role}**!", 
+            ephemeral=True
+        )
+    except Exception as e:
+        await interaction.followup.send(
+            f"⚠️ Something went wrong while changing your role: `{e}`", 
+            ephemeral=True
+        )
 # ---------------- AUTOCOMPLETE ----------------
 @changeblood.autocomplete('new_role')
 async def new_role_autocomplete(interaction: discord.Interaction, current: str):
