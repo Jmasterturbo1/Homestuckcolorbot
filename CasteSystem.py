@@ -85,12 +85,12 @@ async def changeblood(interaction: discord.Interaction, new_role: str):
     try:
         await assign_role(interaction.user, new_role)
         await interaction.followup.send(
-            f"✅ Your role has been changed to **{new_role}**!",
+            f"Your blood caste has been changed to **{new_role}**, Enjoy.",
             ephemeral=True
         )
     except Exception as e:
         await interaction.followup.send(
-            f"⚠️ Error while changing your role: `{e}`",
+            f"`{e}`, Could not be found, new blood type perhaps?",
             ephemeral=True
         )
 
