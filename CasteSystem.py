@@ -96,8 +96,7 @@ async def changeblood(interaction: discord.Interaction, new_role: str):
 @bot.tree.command(name="tutorial", description="Gives descrption on what bot does and it's list of commands")
 async def describe_me(interaction: discord.Interaction):
     
-    tutorial_message = 
-    "--CASTESYSTEM.BOT HAS BEEN BOOTED. BEGINING TO RUN TUTORIAL--\n    Hello new user,\n    This bot has come equipped with several features to really customize your logs.\n    But first you need to do one thing.\n    You must assign a blood cast with any of these roles provided: {ROLE_NAMES}, using the command /changeblood to do so.\n    This bot also gets the Captail intials of your name, so if you have a name like EctoBiologist it will be changed to EB: when chatting.\n    And if you ever want to read the tutorial again you can use the command: /tutorial.\n--END OF TUTORIAL--"
+    tutorial_message ="--CASTESYSTEM.BOT HAS BEEN BOOTED. BEGINING TO RUN TUTORIAL--\n    Hello new user,\n    This bot has come equipped with several features to really customize your logs.\n    But first you need to do one thing.\n    You must assign a blood cast with any of these roles provided: {ROLE_NAMES}, using the command /changeblood to do so.\n    This bot also gets the Captail intials of your name, so if you have a name like EctoBiologist it will be changed to EB: when chatting.\n    And if you ever want to read the tutorial again you can use the command: /tutorial.\n--END OF TUTORIAL--"
     
     await interaction.response.send_message(f"\"{tutorial_message}\"")
 # ---------------- AUTOCOMPLETE ----------------
