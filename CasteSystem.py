@@ -94,7 +94,7 @@ async def changeblood(interaction: discord.Interaction, new_role: str):
             ephemeral=True
         )
 @bot.tree.command(name="tutorial", description="Gives description on what the bot does and its list of commands")
-async def describe_me(interaction: discord.Interaction):
+async def tutorial(interaction: discord.Interaction):
     tutorial_message = (
         "--CASTESYSTEM.BOT HAS BEEN BOOTED. BEGINNING TO RUN TUTORIAL--\n"
         "Hello new user,\n"
